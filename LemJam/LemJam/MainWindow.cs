@@ -14,18 +14,25 @@ namespace LemJam
     public partial class MainWindow : Form
     {
 
-        List<PathItem> pathItems;
-        //List<FileItem> fileItems;
-        Database db;
+        List<MediaFolder> mediaFolder;
 
 
         public MainWindow()
         {
             InitializeComponent();
-
-            db = new Database();
             refreshListViewPathItem();
-            //fileItems = db.GetFileItems();
+
+            Program.Logger.NewLogMessage += Logger_NewLogMessage;
+        }
+
+        private void Logger_NewLogMessage(string message)
+        {
+            this.Invoke(new MethodInvoker(delegate ()
+            {
+                lbConsole.BeginUpdate();
+                lbConsole.Items.Add(message);
+                lbConsole.EndUpdate();
+            }));
         }
 
         private void neuesVerzeichnisToolStripMenuItem_Click(object sender, EventArgs e)
@@ -34,8 +41,8 @@ namespace LemJam
             {
                 case DialogResult.OK:
 
-                    PathItem item = new PathItem(folderBrowserDialog.SelectedPath, Path.GetDirectoryName(folderBrowserDialog.SelectedPath), PathItemType.Slave);
-                    item.Save(db);
+                    MediaFolder item = new MediaFolder(folderBrowserDialog.SelectedPath, Path.GetDirectoryName(folderBrowserDialog.SelectedPath), MediaFolderType.Slave, false);
+                    item.Save();
 
                     refreshListViewPathItem();
 
@@ -50,21 +57,21 @@ namespace LemJam
             if (listViewPathItems.SelectedItems.Count == 0)
                 return;
 
-            PathItem pi = (PathItem)listViewPathItems.SelectedItems[0].Tag;
+            MediaFolder pi = (MediaFolder)listViewPathItems.SelectedItems[0].Tag;
 
 
         }
 
         private void refreshListViewPathItem()
         {
-            pathItems = db.GetPathItems();
+            mediaFolder = Program.db.GetPathItems();
 
             listViewPathItems.BeginUpdate();
             listViewPathItems.Items.Clear();
 
-            foreach (PathItem item in pathItems)
+            foreach (MediaFolder item in mediaFolder)
             {
-                ListViewItem lvi = new ListViewItem(new string[] { item.DisplayName, item.Path, item.Type.ToString() });
+                ListViewItem lvi = new ListViewItem(new string[] { item.DisplayName, item.Path, item.Type.ToString(), item.WorkerActive ? "Aktiv" : "Nicht aktiv" });
 
                 lvi.Tag = item;
 
@@ -77,37 +84,61 @@ namespace LemJam
 
         private void schalteMasterSlaveToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            PathItem pi = (PathItem)listViewPathItems.SelectedItems[0].Tag;
+            MediaFolder pi = (MediaFolder)listViewPathItems.SelectedItems[0].Tag;
 
-            if (pi.Type == PathItemType.Master)
-                pi.Type = PathItemType.Slave;
+            if (pi.Type == MediaFolderType.Master)
+                pi.Type = MediaFolderType.Slave;
             else
-                pi.Type = PathItemType.Master;
-
-            pi.Update(db);
+                pi.Type = MediaFolderType.Master;
 
             refreshListViewPathItem();
         }
 
         private void löschenToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            PathItem pi = (PathItem)listViewPathItems.SelectedItems[0].Tag;
+            MediaFolder pi = (MediaFolder)listViewPathItems.SelectedItems[0].Tag;
 
-            pi.Delete(db);
+            pi.Delete();
         }
 
         private void PathItemContextMenu_Opening(object sender, CancelEventArgs e)
         {
-            if(listViewPathItems.SelectedItems.Count == 0)
+            if (listViewPathItems.SelectedItems.Count == 0)
+                return;
+
+            if (((MediaFolder)listViewPathItems.SelectedItems[0].Tag).WorkerActive)
+                PathItemContextMenu.Items[3].Text = "Deaktiviere Aktualisierung";
+            else
+                PathItemContextMenu.Items[3].Text = "Aktiviere Aktualisierung";
+
+            if (listViewPathItems.SelectedItems.Count == 0)
             {
                 PathItemContextMenu.Items[1].Enabled = false;
                 PathItemContextMenu.Items[2].Enabled = false;
-            } 
-            else
+                PathItemContextMenu.Items[3].Enabled = false;
+            }
+            else if (listViewPathItems.SelectedItems.Count == 1)
             {
                 PathItemContextMenu.Items[1].Enabled = true;
                 PathItemContextMenu.Items[2].Enabled = true;
+                PathItemContextMenu.Items[3].Enabled = true;
             }
+            else
+                MessageBox.Show("Now Syncing");
+        }
+
+        private void deaktiviereAktualisierungToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MediaFolder folder = (MediaFolder)listViewPathItems.SelectedItems[0].Tag;
+            folder.WorkerActive = !folder.WorkerActive;
+
+            refreshListViewPathItem();
+        }
+
+        private void MainWindow_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            foreach (MediaFolder mf in mediaFolder)
+                mf.ShutdownWorker();
         }
     }
 }

@@ -9,7 +9,8 @@ namespace LemJam
         Dictionary<string, object> Fields { get; }
         Dictionary<string, object> PrimaryKeys { get; }
 
-        void Save(Database db);
-        void Update(Database db);
+        void Save();
+        void Update();
+        void Delete();
     }
 }

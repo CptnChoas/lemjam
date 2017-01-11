@@ -8,6 +8,10 @@ namespace LemJam
 {
     static class Program
     {
+
+        public static Logger Logger = new Logger();
+        public static Database db = new Database();
+
         /// <summary>
         /// Der Haupteinstiegspunkt für die Anwendung.
         /// </summary>

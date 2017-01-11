@@ -9,7 +9,7 @@ namespace LemJam
 {
     public class Database
     {
-        private string connectionString = @"Data Source=C:\Users\Lenni\Desktop\Entwicklung\lemjam.sqlite";
+        private string connectionString = @"Data Source=" + System.Environment.CurrentDirectory + @"\..\..\database\lemjam.sqlite";
 
         SQLiteConnection con;
 
@@ -17,40 +17,46 @@ namespace LemJam
         {
             con = new SQLiteConnection(connectionString);
             con.Open();
+            con.Trace += Con_Trace;
             
         }
 
-        public List<PathItem> GetPathItems()
+        private void Con_Trace(object sender, TraceEventArgs e)
         {
-            List<PathItem> items = new List<PathItem>();
+            Program.Logger.LogMessage(e.Statement);
+        }
+
+        public List<MediaFolder> GetPathItems()
+        {
+            List<MediaFolder> items = new List<MediaFolder>();
             SQLiteCommand com = con.CreateCommand();
 
-            com.CommandText = "SELECT * FROM PathPool";
+            com.CommandText = "SELECT * FROM media_folder";
 
             using (SQLiteDataReader reader = com.ExecuteReader())
             {
                 while(reader.Read())
                 {
-                    items.Add(PathItem.FromDatabase(reader));
+                    items.Add(MediaFolder.FromDatabase(reader));
                 }
             }
 
             return items;
         }
 
-        public List<FileItem> GetFileItems()
+        public List<Media> GetFileItems()
         {
-            List<FileItem> items = new List<FileItem>();
+            List<Media> items = new List<Media>();
 
             SQLiteCommand com = con.CreateCommand();
 
-            com.CommandText = "SELECT * FROM Items";
+            com.CommandText = "SELECT * FROM media";
 
             using (SQLiteDataReader reader = com.ExecuteReader())
             {
                 while (reader.Read())
                 {
-                    items.Add(FileItem.FromDatabase(reader));
+                    items.Add(Media.FromDatabase(reader));
                 }
             }
 
@@ -110,7 +116,7 @@ namespace LemJam
             com.CommandText = "SELECT COUNT(*) FROM " + item.TableName + " WHERE " + sb.ToString();
 
             object blub = com.ExecuteScalar();
-            if ((int)blub == 0)
+            if ((long)blub == 0)
             {
                 Store(item);
                 return;
